@@ -1,4 +1,4 @@
-"""This file calculates the total error of the solution to the gap equation."""
+"""Calculates the total error of the solution to the gap equation."""
 
 from variables import V,U,x,T,a,t
 import numpy as np

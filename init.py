@@ -1,3 +1,4 @@
+"""Using solutions of the same N to find better solutions"""
 from variables import V,U,x,T,a,t
 import numpy as np
 import pygad
