@@ -1,26 +1,37 @@
+"""Detrmining the best parameters for the GA"""
 from variables import V,U,x,T,a,t,N
-import numpy as np
 import pygad
 from numba import njit, prange
-import pylab as plt
-
-import itertools
 import numba
+import numpy as np
+import itertools
 
-# import pickle
 
-# region Variables
+psm = ["sss", "rws", "sus", "rank", "random", "tournament"]
 
-# V= -1
-# U= 0.25
-# x= 0.101345
-# T = 100
-# a= 7.182  # 3.8 angstrom
-# t= 0.0147  # 0.4eV
-# N = 8
+cm = ["single_point", "two_points", "uniform", "scattered"]
+
+mm = ["random", "swap", "scramble", "inversion"]
+
+num_genes = N*N
+sol_per_pop = int(num_genes*2)
+
+num_generations = 500
+num_parents_mating = int(num_genes*3/4)
+
+init_range_low = -1
+init_range_high = 1
+
+parent_selection_type = "sss"
+keep_parents = int(N**2/16)
+
+mutation_percent_genes = 10
+
+
+stop_criteria= "reach_0.99999"
+
 
 Beta= 10**6/(3.17 *T) #calculation of inverse temperature
-# endregion
 
 ki =-np.pi / a
 kf= np.pi / a
@@ -120,35 +131,17 @@ def fitness_func(ga_instance: pygad.GA, solution: np.array, solution_idx: np.int
     return get_fitness(solution=solution)
 
 
-
-
 fitness_function = fitness_func
 
-num_genes = N*N
-sol_per_pop = int(num_genes*2)
 
-num_generations = 500
-num_parents_mating = int(num_genes*3/4)
+Q = 3
 
-init_range_low = -1
-init_range_high = 1
-
-parent_selection_type = "sss"
-keep_parents = int(N**2/16)
-
-crossover_type = "single_point"
-
-mutation_type = "random"
-mutation_percent_genes = 10
-
-# parallel_processing= 4
-stop_criteria= "reach_0.99999"
-save_best_solutions=True
-save_solutions=False
-
-fitness_function = fitness_func
-
-ga_instance = pygad.GA(num_generations=num_generations,
+l = np.empty((0,4))
+for p,c,m in itertools.product(psm, cm, mm):
+    parent_selection_type = p
+    crossover_type = c
+    mutation_type = m
+    ga_instance = pygad.GA(num_generations=num_generations,
                        num_parents_mating=num_parents_mating,
                        fitness_func=fitness_function,
                        sol_per_pop=sol_per_pop,
@@ -160,38 +153,15 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        crossover_type=crossover_type,
                        mutation_type=mutation_type,
                        mutation_percent_genes=mutation_percent_genes,
-                       save_best_solutions=save_best_solutions,
                        stop_criteria=stop_criteria
                        )
+    u = np.empty((0,4))
+    for _ in range(Q):
+        ga_instance.run()
+        solution, solution_fitness, solution_idx = ga_instance.best_solution()
+        error = 1 - solution_fitness
+        e = np.array([p,c,m,error])
+        u = np.vstack((u,e))
+    l = np.vstack((l,u))
 
-ga_instance.run()
-# solution, solution_fitness, solution_idx = ga_instance.best_solution()
-solution = ga_instance.best_solutions[-1]
-solution_fitness = ga_instance.best_solutions_fitness[-1]
-error = 1 - solution_fitness
-print(f"Parameters of the best solution : {solution}")
-print(f"$\sigma^2$ of the best solution = {error}")
-
-ga_instance.plot_fitness()
-plt.show()
-
-np.save('b_solutions.npy', ga_instance.best_solutions)
-
-###
-sol_arr = np.array(solution)
-
-# loaded_solution = np.load('8.npy')
-# if solution_fitness > -0.05:
-#     soll = np.vstack((loaded_solution, sol_arr))
-#     np.save('8.npy', soll)
-
-Z    = sol_arr.reshape(N,N)
-
-
-
-plt.imshow(Z,interpolation='none',extent =[-np.pi/a, np.pi/a, -np.pi/a, np.pi/a])
-plt.title("$\Delta_k$")
-plt.xlabel("$k_x$")
-plt.ylabel("$k_y$")
-plt.colorbar() 
-plt.show()
+l_sorted_asc = l[l[:, 3].argsort()]
