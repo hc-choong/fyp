@@ -13,10 +13,16 @@ cm = ["single_point", "two_points", "uniform", "scattered"]
 
 mm = ["random", "swap", "scramble", "inversion"]
 
+# cp = [0.6,0.7,0.8]
+
+# mp = [0.04,0.08,0.12,0.16]
+
+# mpg = [5,10,15,20]
+
 num_genes = N*N
 sol_per_pop = int(num_genes*2)
 
-num_generations = 500
+num_generations = 3
 num_parents_mating = int(num_genes*3/4)
 
 init_range_low = -1
@@ -133,35 +139,74 @@ def fitness_func(ga_instance: pygad.GA, solution: np.array, solution_idx: np.int
 
 fitness_function = fitness_func
 
+import random
+r = random.randint(0,9999)
 
-Q = 3
+Q = 5
 
 l = np.empty((0,4))
 for p,c,m in itertools.product(psm, cm, mm):
-    parent_selection_type = p
-    crossover_type = c
-    mutation_type = m
-    ga_instance = pygad.GA(num_generations=num_generations,
-                       num_parents_mating=num_parents_mating,
-                       fitness_func=fitness_function,
-                       sol_per_pop=sol_per_pop,
-                       num_genes=num_genes,
-                       init_range_low=init_range_low,
-                       init_range_high=init_range_high,
-                       parent_selection_type=parent_selection_type,
-                       keep_parents=keep_parents,
-                       crossover_type=crossover_type,
-                       mutation_type=mutation_type,
-                       mutation_percent_genes=mutation_percent_genes,
-                       stop_criteria=stop_criteria
-                       )
     u = np.empty((0,4))
     for _ in range(Q):
+        parent_selection_type = p
+        crossover_type = c
+        mutation_type = m
+        random_seed = r + _ 
+        ga_instance = pygad.GA(num_generations=num_generations,
+                        num_parents_mating=num_parents_mating,
+                        fitness_func=fitness_function,
+                        sol_per_pop=sol_per_pop,
+                        num_genes=num_genes,
+                        init_range_low=init_range_low,
+                        init_range_high=init_range_high,
+                        parent_selection_type=parent_selection_type,
+                        keep_parents=keep_parents,
+                        crossover_type=crossover_type,
+                        mutation_type=mutation_type,
+                        mutation_percent_genes=mutation_percent_genes,
+                        stop_criteria=stop_criteria,
+                        random_seed=random_seed
+                        )
         ga_instance.run()
         solution, solution_fitness, solution_idx = ga_instance.best_solution()
         error = 1 - solution_fitness
         e = np.array([p,c,m,error])
         u = np.vstack((u,e))
     l = np.vstack((l,u))
+    
+    
+# for p,c,m in itertools.product(psm, cm, mm,cp,mp,mpg):
+#     u = np.empty((0,4))
+#     for _ in range(Q):
+#         parent_selection_type = p
+#         crossover_type = c
+#         mutation_type = m
+#         crossover_probability = cp
+#         mutation_probability = mp
+#         mutation_percent_genes = mpg
+#         random_seed = r + _ 
+#         ga_instance = pygad.GA(num_generations=num_generations,
+#                         num_parents_mating=num_parents_mating,
+#                         fitness_func=fitness_function,
+#                         sol_per_pop=sol_per_pop,
+#                         num_genes=num_genes,
+#                         init_range_low=init_range_low,
+#                         init_range_high=init_range_high,
+#                         parent_selection_type=parent_selection_type,
+#                         keep_parents=keep_parents,
+#                         crossover_type=crossover_type,
+#                         mutation_type=mutation_type,
+#                         mutation_percent_genes=mutation_percent_genes,
+#                         stop_criteria=stop_criteria,
+#                         random_seed=random_seed,
+#                         crossover_probability=crossover_probability,
+#                         mutation_probability=mutation_probability
+#                         )
+#         ga_instance.run()
+#         solution, solution_fitness, solution_idx = ga_instance.best_solution()
+#         error = 1 - solution_fitness
+#         e = np.array([p,c,m,error])
+#         u = np.vstack((u,e))
+#     l = np.vstack((l,u))
 
 l_sorted_asc = l[l[:, 3].argsort()]
