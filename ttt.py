@@ -1,4 +1,4 @@
-"""Determining the best parameters for the GA"""
+"""Randomly selects a set of parameters for the GA and runs it Q times for each set."""
 from variables import V,U,x,T,a,t,N
 import pygad
 from numba import njit, prange
@@ -22,7 +22,7 @@ mpg = [5,10,15,20]
 num_genes = N*N
 sol_per_pop = int(num_genes*2)
 
-num_generations = 300
+num_generations = 1000
 num_parents_mating = int(num_genes*3/4)
 
 init_range_low = -1
@@ -174,9 +174,13 @@ Q = 5 # number of times to run the GA for each parameter set
 #         u = np.vstack((u,e))
 #     l = np.vstack((l,u))
     
-num = 0
+
+comb = list(itertools.product(pst, ct, mt,cp,mp,mpg))
+LLL = [comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))]]
+
+
 l = np.empty((0,7))
-for p,c,m,pc,pm,gpm in itertools.product(pst, ct, mt,cp,mp,mpg):
+for p,c,m,pc,pm,gpm in LLL:
     u = np.empty((0,7))
     for _ in range(Q):
         parent_selection_type = p
@@ -208,13 +212,11 @@ for p,c,m,pc,pm,gpm in itertools.product(pst, ct, mt,cp,mp,mpg):
         error = 1 - solution_fitness
         e = np.array([p,c,m,pc,pm,gpm,error])
         u = np.vstack((u,e))
-    num += 1
-    print(f"{num} out of {len(pst)*len(ct)*len(mt)*len(cp)*len(mp)*len(mpg)*Q}")
     l = np.vstack((l,u))
+    print("done +1")
 
-l_sorted_asc = l[l[:, 3].argsort()]
 
 import pandas as pd
 df = pd.DataFrame(l,columns=["parent_selection_type","crossover_type","mutation_type","crossover_probability","mutation_probability","mutation_percent_genes","error"])
 df = df.sort_values(by=["error"])
-df.to_csv("test1.csv",header=False)
+df.to_csv("tetest1.csv",header=False)
