@@ -1,4 +1,4 @@
-"""Randomly selects a set of parameters for the GA and runs it Q times for each set."""
+"""Determining the best parameters for the GA"""
 from variables import V,U,x,T,a,t,N
 import pygad
 from numba import njit, prange
@@ -7,34 +7,33 @@ import numpy as np
 import itertools
 
 
-pst = ["sss", "rws", "sus", "rank", "random", "tournament"]
+
+pst = ["sss", "tournament"]
 
 ct = ["single_point", "two_points", "uniform", "scattered"]
 
-mt = ["random", "swap", "scramble", "inversion"]
+mt = ["random","inversion"]
 
-cp = [0.6,0.7,0.8]
+cp = [0.6,0.7]
 
-mp = [0.04,0.08,0.12,0.16]
+mp = [0.04,0.08]
 
 mpg = [5,10,15,20]
 
 num_genes = N*N
 sol_per_pop = int(num_genes*2)
 
-num_generations = 500
+num_generations = 3000
 num_parents_mating = int(num_genes*3/4)
 
-init_range_low = -1
-init_range_high = 1
+init_range_low = -1.5
+init_range_high = 1.5
 
 
 keep_parents = int(N**2/16)
 
 
 
-
-stop_criteria= "reach_0.99999"
 
 
 Beta= 10**6/(3.17 *T) #calculation of inverse temperature
@@ -120,35 +119,46 @@ def DeltaSquared(i: np.int64, j: np.int64, solution: np.array) -> np.float64:
     return (delk - R)**2
 # endregion
 
-@njit
+
+@njit(numba.float64(numba.float64[::1]), nogil=True, cache=True, parallel=True)
 def ave(sol):
     sol = np.abs(sol)
     average = np.mean(sol)
     return average
 
+
+
 @njit(numba.float64(numba.float64[::1]), nogil=True, cache=True, parallel=True)
+def get_SigmaSQ(solution: np.array) -> np.float64:
+    sigma_sq = 0
+    # Don't use the n_by_n array here so that we can run N DeltaSquared() operations in parallel.
+    for j in prange(N):
+        for i in range(N):
+            sdeltasq = DeltaSquared(i=i, j=j, solution=solution)
+            sigma_sq += sdeltasq
+    return sigma_sq
+
+
+@njit
+def sym(solution):
+    sym_diff = 0
+    solution = solution.reshape(N, N)
+    for i in range(N):
+        for j in range(i+1,N):
+            dif = solution[i,j] - solution[j,i]
+            sym_diff += dif**2 
+    return sym_diff
+
+
+@njit(numba.float64(numba.float64[::1]), nogil=True, cache=True)
 def get_fitness(solution: np.array) -> np.float64:
-    fitness = 0
-    # Don't use the n_by_n array here so that we can run N DeltaSquared() operations in parallel.
-    for j in prange(N):
-        for i in range(N):
-            sdeltasq = DeltaSquared(i=i, j=j, solution=solution)
-            fitness += sdeltasq
-    return 1-fitness/ave(solution)
+    RMS = np.sqrt(get_SigmaSQ(solution=solution)/N**2)
+    return -(RMS/ave(sol=solution))
+    # return -(RMS/ave(sol=solution) + sym(solution=solution))
 
 
-@njit(numba.float64(numba.float64[::1]), nogil=True, cache=True, parallel=True)
-def get_fit(solution: np.array) -> np.float64:
-    fitness = 0
-    # Don't use the n_by_n array here so that we can run N DeltaSquared() operations in parallel.
-    for j in prange(N):
-        for i in range(N):
-            sdeltasq = DeltaSquared(i=i, j=j, solution=solution)
-            fitness += sdeltasq
-    return 1-fitness
 
-
-def fitness_func(ga_instance: pygad.GA, solution: np.array, solution_idx: np.int64) -> np.float64:
+def fitness_func(ga_instance: pygad.GA, solution: np.array, solution_idx: np.int64):
     return get_fitness(solution=solution)
 
 
@@ -157,7 +167,7 @@ fitness_function = fitness_func
 import random
 r = random.randint(0,9999)
 
-Q = 5 # number of times to run the GA for each parameter set
+Q = 3 # number of times to run the GA for each parameter set
 
 # l = np.empty((0,4))
 # for p,c,m in itertools.product(psm, cm, mm):
@@ -189,11 +199,10 @@ Q = 5 # number of times to run the GA for each parameter set
 #         u = np.vstack((u,e))
 #     l = np.vstack((l,u))
     
-
 comb = list(itertools.product(pst, ct, mt,cp,mp,mpg))
-LLL = [comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))]]
+LLL = [comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))],comb[random.randint(0,len(comb))]]
 
-
+num = 0
 l = np.empty((0,7))
 for p,c,m,pc,pm,gpm in LLL:
     u = np.empty((0,7))
@@ -217,23 +226,24 @@ for p,c,m,pc,pm,gpm in LLL:
                         crossover_type=crossover_type,
                         mutation_type=mutation_type,
                         mutation_percent_genes=mutation_percent_genes,
-                        stop_criteria=stop_criteria,
                         random_seed=random_seed,
                         crossover_probability=crossover_probability,
                         mutation_probability=mutation_probability
                         )
         ga_instance.run()
         solution, solution_fitness, solution_idx = ga_instance.best_solution()
-        error = 1 - get_fit(solution)
+        error = get_SigmaSQ(solution)
         RMS = np.sqrt(error/N**2)
         RMSperAVE = RMS/ave(solution)
         e = np.array([p,c,m,pc,pm,gpm,RMSperAVE])
         u = np.vstack((u,e))
+    num += 1
+    print(f"{num} out of {len(pst)*len(ct)*len(mt)*len(cp)*len(mp)*len(mpg)}")
     l = np.vstack((l,u))
-    print("done +1")
 
+l_sorted_asc = l[l[:, 3].argsort()]
 
 import pandas as pd
 df = pd.DataFrame(l,columns=["parent_selection_type","crossover_type","mutation_type","crossover_probability","mutation_probability","mutation_percent_genes","rms_per_ave"])
 df = df.sort_values(by=["rms_per_ave"])
-df.to_csv("Tetest1.csv",header=False)
+df.to_csv("test_0.csv",header=False)
