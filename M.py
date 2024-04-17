@@ -138,9 +138,10 @@ def fitness_func(ga_instance: pygad.GA, solution: np.array, solution_idx: np.int
 fitness_function = fitness_func
 
 num_genes = N*N
-sol_per_pop = int(num_genes*2)
+# sol_per_pop = int(num_genes*2)
+sol_per_pop = N*2
 
-num_generations = 10000
+num_generations = 1000
 num_parents_mating = int(num_genes*3/4)
 
 init_range_low = -4
@@ -152,14 +153,14 @@ keep_parents = int(N**2/16)
 crossover_type = "single_point"
 
 mutation_type = "random"
-mutation_percent_genes = 10
+mutation_percent_genes = 5
 
 crossover_probability = 0.6
 mutation_probability = 0.04
 
 # parallel_processing= 4
 # stop_criteria= "reach_0.99999"
-save_best_solutions=True
+save_best_solutions=False
 save_solutions=True
 
 fitness_function = fitness_func
@@ -180,20 +181,31 @@ ga_instance = pygad.GA(num_generations=num_generations,
                        save_solutions=save_solutions
                        )
 
-ga_instance.run()
+# ga_instance.run()
 # solution, solution_fitness, solution_idx = ga_instance.best_solution()
-solution = ga_instance.best_solutions[-1]
+# solution = ga_instance.best_solutions[-1]
 # solution_fitness = ga_instance.best_solutions_fitness[-1]
-error =  get_SigmaSQ(solution)
-print(f"Parameters of the best solution : {solution}")
-print(f"$\sigma^2$ of the best solution = {error}")
-RMS = np.sqrt(error/N**2)
-print(f"RMS error of the best solution = {RMS}")
-AAverage = ave(sol=solution)
-print(f"Average of the best solution = {AAverage}")
-rms_per_ave = RMS/AAverage
-print(f"RMS/AVE = {rms_per_ave}")
+# error =  get_SigmaSQ(solution)
+# print(f"Parameters of the best solution : {solution}")
+# print(f"$\sigma^2$ of the best solution = {error}")
+# RMS = np.sqrt(error/N**2)
+# print(f"RMS error of the best solution = {RMS}")
+# AAverage = ave(sol=solution)
+# print(f"Average of the best solution = {AAverage}")
+# rms_per_ave = RMS/AAverage
+# print(f"RMS/AVE = {rms_per_ave}")
 
 
-np.save('Delta.npy', ga_instance.solutions)
-np.save('BDelta.npy', ga_instance.best_solutions)
+# np.save('DeltaA.npy', ga_instance.solutions)
+# np.save('BDelta.npy', ga_instance.best_solutions)
+
+LLL = ["01","02","03"]
+
+for _ in LLL:
+    ga_instance.run()
+    solution, solution_fitness, solution_idx = ga_instance.best_solution()
+    if solution_fitness > -0.09:
+        soll = np.unique(ga_instance.solutions,axis =0)
+        choosen_solutions = soll[::10]
+        choosen_solutions = np.vstack((choosen_solutions,solution))
+        np.save("results/Delta"+_,choosen_solutions)
